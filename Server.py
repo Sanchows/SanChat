@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 
 class ClientThread(threading.Thread):
     def __init__(self, conn, addr):
@@ -10,27 +11,35 @@ class ClientThread(threading.Thread):
     def run(self):
         isConn = False
         while True:
-            if not isConn: 
-                print ('Подключился клиент: ', addr, end = ' Название: ')
+            if not isConn: # if the client connects for the first time
                 data = self.conn.recv(1024)
+                print ('Connected: ' + 'IP ['+ str(self.addr[0]) + '] ID[' + str(self.addr[1]) + '] N['+ data.decode('utf-8') + ']')
                 isConn = True
-                print(data.decode("utf-8"))
+                clients.append(self.conn)
             
             replyFromClient = self.conn.recv(1024)
+
+            for client in clients:
+                if client != self.conn:
+                    txtMsg = data.decode('utf-8') + ': ' + replyFromClient.decode('utf-8') 
+                    client.send(txtMsg.encode())
             
             if not replyFromClient:
                 break
-            
-            print (str(data.decode("utf-8")) + ' пишет: ' + str(replyFromClient.decode("utf-8")))
-            
+            print (str(data.decode("utf-8")) + ' wrote: ' + str(replyFromClient.decode("utf-8")))
+                
             if replyFromClient.decode('utf-8')=='/exit':
+                print ('Disconnected: ' + 'IP ['+ str(self.addr[0]) + '] ID[' + str(self.addr[1]) + '] N['+ data.decode('utf-8') + ']')
+                clients.remove(self.conn)
                 break         
-            self.conn.send(replyFromClient.decode("utf-8").upper().encode())
-        conn.close()
+        self.conn.close()
 
 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-conn.bind(('', 9090))
+conn.bind(('localhost', 9090))
 conn.listen(5)
+
+clients = []
+con_list = []
 
 while True: 
     connS, addr = conn.accept()
