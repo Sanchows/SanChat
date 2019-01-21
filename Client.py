@@ -1,7 +1,10 @@
 import socket
 import threading
 import os
-
+'''
+Added handler event, when is impossible connecting to server
+Added handler for sudden closing of program (50%)
+'''
 class otherClients(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -22,7 +25,6 @@ class Client(threading.Thread):
 
     def run(self):
         while True:
- #           print (clientName + ': ', end = '')
             try:
                 textMsg = str(input(clientName+': '))
                 sock.send(textMsg.encode())
@@ -32,20 +34,16 @@ class Client(threading.Thread):
                 sock.close()
                 break
         os._exit(1)
-
-clsd = False # for /exit
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('localhost', 9090))
-
+try:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(('localhost', 9092))
+except:
+    print('Error connecting to server')
+    os._exit(1)
 print ('You are connected to server. Enter your name: ', end='')
 clientName = input()
 
 sock.send(clientName.encode())  
 
 Client().start()
-iAmFirst = False
-while True:
-    if not iAmFirst:
-        otherClients().start()
-        iAmFirst = True
+otherClients().start()
