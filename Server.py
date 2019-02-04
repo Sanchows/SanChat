@@ -1,60 +1,45 @@
 import socket, threading, time
 
-'''
-# 24.01 00:05
-the ability to view connected clients to the server
-'''
+from modules.serverprocessing import broadcast
+from modules.serverprocessing import commands
+from modules.serverprocessing import customerdata
 
-'''
-need to do:
- method editingClients()
- time
-
-
- cryption
- protocol
- DB
-'''
 class ClientThread(threading.Thread):
     def __init__(self, conn, addr):
         self.conn = conn #socket
         self.addr = addr #list: [0] - ip , [1] - id
         threading.Thread.__init__(self)
-            
+                
     def run(self):
-        isConn = False # for 
-        while True:
+        isFirst = True # for first client connection
+        while self.conn:
             # if the client connects for the first time:
-            if not isConn: 
-                inputNameClient = self.conn.recv(1024)
-                IP_CLIENT = str(self.addr[0])
-                ID_CLIENT = str(self.addr[1])
-                NAME_CLIENT = inputNameClient.decode("utf-8")
-
-                print("Connected: IP[{0}] ID[{1}] N[{2}]".format(IP_CLIENT, ID_CLIENT, NAME_CLIENT))
+            if isFirst: 
+                
+                IP_CLIENT, ID_CLIENT, NAME_CLIENT = customerdata.getInfo(self.addr, self.conn)
+                
                 clients.append(self.conn)
                 names_clients.append(NAME_CLIENT)
+
+                print("Connected: IP[{0}] ID[{1}] N[{2}]".format(IP_CLIENT, ID_CLIENT, NAME_CLIENT))
+                
                 self.conn.send("=================================\nWelcome to SanChat, bro ;3".encode())
-                for client in clients:
-                    if client != self.conn:
-                        txtMsg = "<--- {0} joined the chat! --->".format(NAME_CLIENT)
-                        client.send(txtMsg.encode())
-                isConn = True
-        #==== ПРИЕМ СООБЩЕНИЯ ===============================================
+                
+                txtMsg = "<--- {0} joined the chat! --->".format(NAME_CLIENT)
+                broadcast.toAllOther(clients, self.conn, txtMsg)
+
+                isFirst = False
+                                
+#==== ПРИЕМ СООБЩЕНИЯ  
             replyFromClient = self.conn.recv(1024)
             INC_MESSAGE = replyFromClient.decode("utf-8")
             
             if INC_MESSAGE == '/online':
-                FOR_ONLINE = '------ NOW CHATTING ------\n'
-                for name in names_clients:
-                    FOR_ONLINE += name + '\n'
-                FOR_ONLINE += '---------------------------'
-                self.conn.send(str(FOR_ONLINE).encode())
+                commands.online(names_clients, self.conn)
                 continue
-            for client in clients:
-                if client != self.conn:
-                    txtMsg = "{0}: {1}".format(NAME_CLIENT, INC_MESSAGE)
-                    client.send(txtMsg.encode())
+
+            txtMsg = "{0}: {1}".format(NAME_CLIENT, INC_MESSAGE)
+            broadcast.toAllOther(clients, self.conn, txtMsg)
             
             if not replyFromClient:
                 break
@@ -62,24 +47,25 @@ class ClientThread(threading.Thread):
                 
             if INC_MESSAGE=='/exit':
                 break
-        #====================================================================
+
+#==== IF DISCONNECT (self.conn = false)
         print("Disconnected: IP[{0}] ID[{1}] N[{2}]".format(IP_CLIENT, ID_CLIENT, NAME_CLIENT))
-        for client in clients:
-            if client != self.conn:
-                txtMsg = "\n<--- {0} has exit the chat --->".format(NAME_CLIENT)
-                client.send(txtMsg.encode())
+        
+        txtMsg = "\n<--- {0} has exit the chat --->".format(NAME_CLIENT)
+        broadcast.toAllOther(clients, self.conn, txtMsg)
 
         clients.remove(self.conn)
         names_clients.remove(NAME_CLIENT)         
+        
         self.conn.close()
-#==============================================================================================================
+#=========================================
 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-conn.bind(('localhost', 9088))
-conn.listen(5)
+conn.bind(('localhost', 9092))
+conn.listen()
 
 clients = []
 names_clients = []
 
-while True: 
+while True:
     connS, addr = conn.accept()
     ClientThread(connS, addr).start()
