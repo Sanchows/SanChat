@@ -1,70 +1,52 @@
 import socket, threading, time
 
-from modules.serverprocessing import broadcast
 from modules.serverprocessing import commands
-from modules.serverprocessing import customerdata
+from modules.serverprocessing.user_interaction import User
 
 class ClientThread(threading.Thread):
     def __init__(self, conn, addr):
-        self.conn = conn #socket
-        self.addr = addr #list: [0] - ip , [1] - id
+        self.conn = conn
+        self.addr = addr
         threading.Thread.__init__(self)
-                
+
     def run(self):
-        isFirst = True # for first client connection
+        isFirst = True
         while self.conn:
             # if the client connects for the first time:
             if isFirst: 
-                
-                IP_CLIENT, ID_CLIENT, NAME_CLIENT = customerdata.getInfo(self.addr, self.conn)
-                
-                clients.append(self.conn)
-                names_clients.append(NAME_CLIENT)
-
-                print("Connected: IP[{0}] ID[{1}] N[{2}]".format(IP_CLIENT, ID_CLIENT, NAME_CLIENT))
-                
-                self.conn.send("=================================\nWelcome to SanChat, bro ;3".encode())
-                
-                txtMsg = "<--- {0} joined the chat! --->".format(NAME_CLIENT)
-                broadcast.toAllOther(clients, self.conn, txtMsg)
-
+                user = User(self.addr, self.conn)
+                IP_CLIENT, PORT, NAME_CLIENT = user.get_userinfo()
+                list_socks.append(self.conn)
+                list_names.append(NAME_CLIENT)
+                user.to_register()
+                print("Connected: IP[{0}] PORT[{1}] N[{2}]".format(IP_CLIENT, PORT, NAME_CLIENT))
                 isFirst = False
-                                
-#==== ПРИЕМ СООБЩЕНИЯ  
-            replyFromClient = self.conn.recv(1024)
-            INC_MESSAGE = replyFromClient.decode("utf-8")
             
-            if INC_MESSAGE == '/online':
-                commands.online(names_clients, self.conn)
+            MESSAGE = user.get_message().decode("utf-8")
+            if MESSAGE == '/online':
+                commands.online(list_names, self.conn)
                 continue
 
-            txtMsg = "{0}: {1}".format(NAME_CLIENT, INC_MESSAGE)
-            broadcast.toAllOther(clients, self.conn, txtMsg)
-            
-            if not replyFromClient:
+            txtMsg = "{0}: {1}".format(NAME_CLIENT, MESSAGE)
+            user.send_to_all_other(list_socks, txtMsg)            
+            if not MESSAGE:
                 break
-            print ('{0} wrote: {1}'.format(NAME_CLIENT, str(INC_MESSAGE)))
+            print ('{0} wrote: {1}'.format(NAME_CLIENT, str(MESSAGE)))
                 
-            if INC_MESSAGE=='/exit':
+            if MESSAGE=='/exit':
                 break
 
-#==== IF DISCONNECT (self.conn = false)
-        print("Disconnected: IP[{0}] ID[{1}] N[{2}]".format(IP_CLIENT, ID_CLIENT, NAME_CLIENT))
-        
-        txtMsg = "\n<--- {0} has exit the chat --->".format(NAME_CLIENT)
-        broadcast.toAllOther(clients, self.conn, txtMsg)
+        print("Disconnected: IP[{0}] PORT[{1}] N[{2}]".format(IP_CLIENT, PORT, NAME_CLIENT))
+        list_socks.remove(self.conn)
+        list_names.remove(NAME_CLIENT)       
+        user.disconnect()  
 
-        clients.remove(self.conn)
-        names_clients.remove(NAME_CLIENT)         
-        
-        self.conn.close()
-#=========================================
 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 conn.bind(('localhost', 9092))
 conn.listen()
 
-clients = []
-names_clients = []
+list_socks = []
+list_names = []
 
 while True:
     connS, addr = conn.accept()
