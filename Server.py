@@ -19,6 +19,8 @@ class ClientThread(threading.Thread):
                 list_socks.append(self.conn)
                 list_names.append(NAME_CLIENT)
                 user.to_register()
+                txtMsg = "<--- {0} joined the chat! --->".format(NAME_CLIENT)
+                user.send_to_all_other(list_socks, txtMsg)  
                 print("Connected: IP[{0}] PORT[{1}] N[{2}]".format(IP_CLIENT, PORT, NAME_CLIENT))
                 isFirst = False
             
@@ -38,7 +40,7 @@ class ClientThread(threading.Thread):
 
         print("Disconnected: IP[{0}] PORT[{1}] N[{2}]".format(IP_CLIENT, PORT, NAME_CLIENT))
         list_socks.remove(self.conn)
-        list_names.remove(NAME_CLIENT)       
+        list_names.remove(NAME_CLIENT)      
         user.disconnect()  
 
 conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
